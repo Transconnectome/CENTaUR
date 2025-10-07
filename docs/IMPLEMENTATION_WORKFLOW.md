@@ -1,10 +1,10 @@
 # Ko-CENTaUR Implementation Workflow
 
-**Version**: 1.0
-**Date**: 2025-01-07
+**Version**: 1.1 (Revised for Multi-Lab Collaboration)
+**Date**: 2025-10-07
 **Based On**: LLM_SELECTION_STRATEGY.md v1.0
 **Timeline**: 12 months (3 phases)
-**Total Budget**: ~$3,336 ($936 training + $2,400 inference)
+**Total Budget**: ~$10,000 (GPU compute + IRB + minimal RA support)
 
 ---
 
@@ -12,7 +12,9 @@
 
 This workflow document provides week-by-week implementation guidance for the Ko-CENTaUR project, breaking down the 3-phase staged approach (MVP → Scale-up → Full System) into actionable tasks with clear dependencies, resource requirements, and success criteria.
 
-**Critical Path**: IRB approval and data collection are the primary bottlenecks. All technical work should proceed in parallel where possible.
+**Data Strategy**: **Multi-lab collaboration** - aggregate existing datasets from collaborating research labs rather than recruiting new participants. This reduces cost from $326K to ~$10K.
+
+**Critical Path**: IRB approval (for data sharing agreements) and data aggregation are the primary bottlenecks. All technical work should proceed in parallel where possible.
 
 ---
 
@@ -137,114 +139,120 @@ python scripts/test_tokenization.py
 
 ---
 
-#### Task 1.4: IRB Application Preparation [PARALLEL - Week 1-4]
-**Priority**: Critical (blocks data collection)
+#### Task 1.4: IRB Application for Multi-Lab Data Sharing [PARALLEL - Week 1-4]
+**Priority**: Critical (blocks data aggregation)
 **Dependencies**: None (can start immediately)
 **Owner**: PI/Research coordinator
 
 **Deliverables**:
-- IRB protocol document
-- Consent forms (Korean + English)
-- Data management plan
-- Security protocols
-- Recruitment materials
+- IRB protocol for **secondary data analysis** with data sharing agreements
+- Data Use Agreements (DUAs) template
+- Data management and security plan
+- De-identification procedures
 
 **Components**:
-1. **Protocol Narrative** (5-10 pages):
+1. **Protocol Narrative** (3-5 pages):
    - Background and significance
-   - Participant recruitment (N=20 pilot, N=5,500 full)
+   - **Secondary data analysis** from existing lab datasets
+   - **No new participant recruitment**
+   - Data sources: 3-5 collaborating Korean research labs
+   - Estimated N=3,000-5,000 from aggregated datasets
    - Age range: 0-18+ (developmental span)
-   - Tasks: K-MMSE, PHQ-9, SDQ, ABCD tasks
+   - Tasks: K-MMSE, PHQ-9, SDQ, ABCD tasks, etc.
    - Data storage and security
-   - Risk/benefit analysis
+   - Minimal risk classification (de-identified data only)
 
-2. **Consent Forms**:
-   - Adult consent (18+)
-   - Parental consent (minors)
-   - Child assent (ages 7-17)
-   - Korean translations required
+2. **Data Use Agreements (DUAs)**:
+   - Template for each collaborating lab
+   - Data sharing procedures
+   - De-identification requirements
+   - Publication rights and authorship
+   - Data destruction timeline
 
 3. **Data Management**:
-   - De-identification procedures
+   - De-identification procedures (remove all 18 HIPAA identifiers)
    - Encryption standards (AES-256)
-   - Access controls
-   - Storage location and backup
+   - Access controls (PI + 1-2 approved RAs only)
+   - Storage location (institutional secure server)
    - Retention period (10 years)
 
 **Timeline**:
-- Week 1: Draft protocol
-- Week 2: Internal review
-- Week 3: Submit to IRB
-- Week 4-8: IRB review (expect revisions)
+- Week 1: Draft protocol + DUA template
+- Week 2: Circulate to potential collaborating labs for feedback
+- Week 3: Submit to IRB (expedited review likely for secondary data)
+- Week 4-6: IRB review (faster than full board review)
 
 **Decision Gate**: If IRB not submitted by Week 4 → Red flag, escalate
 
+**Cost**: $500 (IRB application fee)
+
 ---
 
-### Week 3-4: Pilot Data Collection
+### Week 3-4: Initial Data Aggregation Setup
 
-#### Task 1.5: Pilot Participant Recruitment [2 weeks]
+#### Task 1.5: Collaborating Lab Identification [2 weeks]
 **Priority**: Critical
-**Dependencies**: Task 1.4 (IRB submission, not approval)
-**Owner**: Research coordinator
+**Dependencies**: Task 1.4 (IRB in progress)
+**Owner**: PI + Research coordinator
 
-**Strategy**: While waiting for IRB approval, prepare recruitment materials
+**Strategy**: Identify and approach 3-5 Korean research labs with existing developmental/clinical datasets
 
-**Target**: N=20 pilot participants
-- Age distribution: 5 each from child (6-11), adolescent (12-17), young adult (18-25), adult (26+)
-- Gender balance: 10M/10F
-- Clinical mix: 15 healthy control, 5 mild clinical symptoms
+**Target**: N=100-200 for pilot from 1-2 labs
+- Age distribution: Child (6-11), Adolescent (12-17), Young Adult (18-25), Adult (26+)
+- Clinical mix: Healthy controls + clinical samples
 
-**Recruitment Channels**:
-1. Hospital outpatient clinics
-2. University student populations
-3. Community centers
-4. Online recruitment platforms (Korean)
+**Potential Collaborating Labs**:
+1. University hospital developmental psychology labs
+2. Clinical research centers with K-MMSE/PHQ-9 data
+3. Child psychiatry research labs (CBCL, SDQ data)
+4. Neuropsychological assessment clinics
 
-**Inclusion Criteria**:
-- Korean native speaker
-- Age 6+
-- No severe cognitive impairment
-- Informed consent/assent obtained
+**Approach Strategy**:
+- Email introduction with project summary
+- Offer co-authorship on publications
+- DUA template from Task 1.4
+- Emphasize mutual benefit (access to CENTaUR model)
 
-**Compensation**: ₩30,000 per session (~$22)
+**Compensation**: **None** (data sharing collaboration, co-authorship instead)
 
 **Timeline**:
-- Week 3-4: Recruitment materials preparation
-- Week 5-8: Active recruitment (parallel with IRB approval)
+- Week 3: Identify potential collaborators (5-10 labs)
+- Week 4: Send initial contact emails
+- Week 5-6: Follow-up meetings and DUA negotiation
+
+**Cost**: $0 (no participant recruitment)
 
 ---
 
-#### Task 1.6: Data Collection Protocol [1 week]
+#### Task 1.6: Data Standardization Protocol [1 week]
 **Priority**: High
 **Dependencies**: Task 1.5
-**Owner**: Clinical staff + research coordinator
+**Owner**: Research coordinator + Data manager
 
-**Instruments**:
+**Goal**: Convert heterogeneous existing lab datasets into standardized JSONL format
+
+**Common Data Sources from Labs**:
 1. **K-MMSE** (Korean Mini-Mental State Examination)
-   - 30 questions
-   - ~10 minutes
-   - Gold standard cognitive screening
-
 2. **PHQ-9** (Patient Health Questionnaire)
-   - 9 questions
-   - ~5 minutes
-   - Depression screening
-
 3. **SDQ** (Strengths and Difficulties Questionnaire)
-   - 25 questions
-   - ~5 minutes
-   - Behavioral screening (children/adolescents)
+4. **CBCL** (Child Behavior Checklist) - summary scores only
+5. **WISC/WAIS** scores (de-identified)
+6. Various developmental assessments
 
-**Data Format**: JSONL with `<< >>` response masking
+**Data Standardization Process**:
+1. **Receive Data**: Excel/CSV/SPSS files from collaborating labs
+2. **De-identification Check**: Verify no HIPAA identifiers present
+3. **Format Conversion**: Transform to JSONL with `<< >>` masking
+4. **Metadata Integration**: Add age, gender, clinical scores
+5. **Quality Control**: Check completeness and consistency
 
-**Example JSONL Entry**:
+**Target JSONL Format**:
 ```json
 {
   "text": "[meta: age_m=180; sex=M; cbcl_int_t=72]\n\n지남력 평가:\n오늘은 몇 년도인가요? <<2025>>\n오늘은 몇 월인가요? <<1>>",
   "experiment": "k_mmse",
   "participant": {
-    "id": "KO_MMSE_001",
+    "id": "LAB1_001",  // Lab prefix + anonymous ID
     "age_months": 180,
     "age_group": "adolescent",
     "gender": "M"
@@ -253,16 +261,23 @@ python scripts/test_tokenization.py
     "instrument": "K-MMSE",
     "total_score": 27,
     "normative_percentile": 45
-  }
+  },
+  "source_lab": "LAB1"  // Track data provenance
 }
 ```
 
 **Quality Control**:
-- Double-entry verification
-- Immediate QC check after each session
-- Flag incomplete/ambiguous responses
+- Automated format validation script
+- Check for missing values
+- Flag inconsistent ages/scores
+- Manual review of 10% random sample
 
-**Deliverable**: 20 complete JSONL files in `ko_centaur/data/raw/pilot/`
+**Deliverable**:
+- Standardization script (`scripts/data_conversion.py`)
+- 100-200 pilot JSONL entries in `ko_centaur/data/raw/pilot/`
+- Data quality report
+
+**Cost**: ~$500 (part-time RA 20 hours @ $25/hr for data conversion)
 
 ---
 
@@ -493,44 +508,47 @@ model_config = {
 **Goal**: Production-ready Korean cognitive model ($444)
 **Success Criteria**: Korean norm correlation r ≥0.70, age effects replicate, clinical AUC ≥0.75
 
-### Week 13-14: Data Collection Scale-Up
+### Week 13-14: Multi-Lab Data Aggregation Scale-Up
 
-#### Task 2.1: Full Dataset Recruitment [12 weeks, PARALLEL]
+#### Task 2.1: Full Dataset Aggregation from Collaborating Labs [12 weeks, PARALLEL]
 **Priority**: Critical (long lead time)
-**Dependencies**: Task 1.4 (IRB approval)
-**Owner**: Research coordinator + clinical partners
+**Dependencies**: Task 1.4 (IRB approval + DUAs signed)
+**Owner**: Research coordinator + Data manager
 
-**Target**: N=5,500 total sessions
-- N=1,500 children (6-11 years)
-- N=1,500 adolescents (12-17 years)
-- N=1,500 young adults (18-25 years)
-- N=1,000 adults (26+ years)
+**Target**: N=3,000-5,000 de-identified sessions from 3-5 collaborating labs
+- N=800-1,200 children (6-11 years)
+- N=800-1,200 adolescents (12-17 years)
+- N=800-1,200 young adults (18-25 years)
+- N=600-1,200 adults (26+ years)
 
-**Distribution**:
-- 70% healthy controls (N=3,850)
-- 30% clinical samples (N=1,650)
-  - ADHD: N=400
-  - Anxiety/Depression: N=400
-  - Learning disabilities: N=300
-  - Autism spectrum: N=200
-  - Other: N=350
+**Expected Distribution** (based on typical lab datasets):
+- 60-70% healthy controls
+- 30-40% clinical samples (ADHD, anxiety, depression, ASD, etc.)
 
-**Instruments per Session**:
-1. K-MMSE or age-appropriate variant
-2. PHQ-9 (depression)
-3. SDQ (behavior - children/adolescents)
-4. GAD-7 (anxiety)
-5. Optional: ABCD tasks (publicly available subset)
+**Data Sources per Lab**:
+1. K-MMSE or age-appropriate cognitive tests
+2. PHQ-9 (depression) / GAD-7 (anxiety)
+3. SDQ / CBCL (behavior - children/adolescents)
+4. Clinical interview data (KSADS summaries)
+5. Developmental history (if available)
 
 **Timeline**:
-- Weeks 13-16: Ramp up recruitment (100 sessions/week)
-- Weeks 17-20: Peak collection (200 sessions/week)
-- Weeks 21-24: Maintain (150 sessions/week)
-- Week 25: Final push and QC
+- Week 13: Finalize DUAs with 3-5 collaborating labs
+- Week 14-16: Receive initial data batches from labs (Excel/CSV/SPSS)
+- Week 17-20: Data conversion and standardization (RA work)
+- Week 21-24: Quality control and validation
+- Week 25: Final dataset assembly and split (train/val/test)
 
-**Budget**: ₩30,000 × 5,500 = ₩165M (~$120,000 USD)
+**Budget**: **$0 participant compensation** (data sharing collaboration)
+- Co-authorship offered to contributing labs
+- Access to trained Ko-CENTaUR model for collaborators
 
-**Parallel Strategy**: Data collection continues throughout Phase 2 and 3
+**Data Conversion Cost**: ~$2,000 (part-time RA 80 hours @ $25/hr)
+- Convert heterogeneous formats to standardized JSONL
+- De-identification verification
+- Quality control checks
+
+**Parallel Strategy**: Data aggregation continues throughout Phase 2 and 3 as more labs join
 
 ---
 
@@ -997,16 +1015,21 @@ class HybridCognitiveModel:
 
 ---
 
-#### Task 3.2: Visual Task Data Collection [PARALLEL, Weeks 27-35]
-**Priority**: Medium
+#### Task 3.2: Visual Task Data Aggregation [PARALLEL, Weeks 27-35]
+**Priority**: Medium (Optional - can skip if budget/time constrained)
 **Dependencies**: Task 2.12
 **Owner**: Research coordinator
 
-**Target**: N=550 visual tasks
-- N=200 infant visual preference (ages 0-2)
-- N=150 picture naming (ages 3-6)
-- N=100 visual memory (ages 7-12)
-- N=100 figure drawing (ages 6-18)
+**Target**: N=300-500 visual tasks from collaborating developmental labs
+- N=100-150 infant visual preference (ages 0-2) - from infant cognition labs
+- N=100-150 picture naming (ages 3-6) - from language development labs
+- N=50-100 visual memory (ages 7-12) - from neuropsych clinics
+- N=50-100 figure drawing (ages 6-18) - from clinical assessment archives
+
+**Data Sources**:
+- Existing infant eye-tracking studies (visual preference data)
+- Developmental psychology labs with picture naming tasks
+- Clinical archives with figure drawing tests (Goodenough-Harris, Bender-Gestalt)
 
 **Data Format**:
 ```json
@@ -1018,19 +1041,23 @@ class HybridCognitiveModel:
   ],
   "experiment": "infant_visual_preference",
   "participant": {
-    "id": "KO_INF_001",
+    "id": "LAB3_INF_001",
     "age_months": 18,
     "age_group": "infant"
-  }
+  },
+  "source_lab": "LAB3"
 }
 ```
 
-**Challenges**:
-- Infant recruitment difficult → Partner with pediatric clinics
-- Visual stimuli require standardization → Use validated test batteries
-- Annotation requires expert coding → Train research assistants
+**Approach**:
+- Identify 1-2 developmental labs with existing visual task data
+- Secure additional DUAs for image data (more complex than text)
+- Convert existing visual stimuli + response data to JSONL format
 
-**Parallel Strategy**: Collect visual data while text training continues
+**Cost**: **$0 recruitment** (data sharing), ~$500 RA time for conversion
+
+**Parallel Strategy**: Aggregate visual data while text training continues
+**Contingency**: Skip if labs unwilling to share image data (more sensitive than text)
 
 ---
 
@@ -1150,31 +1177,36 @@ class ReasoningModule:
 
 ### Week 33-40: Full System Training & Evaluation
 
-#### Task 3.6: Complete Data Collection [Weeks 33-36]
+#### Task 3.6: Complete Data Aggregation [Weeks 33-36]
 **Priority**: High
-**Dependencies**: Task 2.1 (ongoing)
-**Owner**: Research coordinator
+**Dependencies**: Task 2.1 (ongoing data aggregation from labs)
+**Owner**: Research coordinator + Data manager
 
-**Final Push**:
-- Ensure all 5,500 text sessions complete
-- Ensure 550 visual sessions complete
-- Final QC pass on all data
-- Resolve any data quality issues
+**Final Data Assembly**:
+- Ensure all 3,000-5,000 text sessions aggregated from collaborating labs
+- Ensure 300-500 visual sessions aggregated (if pursuing multimodal)
+- Final QC pass on all data (de-identification verification, format consistency)
+- Resolve any data quality issues (missing values, format errors)
 
 **Data Preparation**:
 ```bash
 # Organize final dataset
 ko_centaur/data/final/
 ├── train/
-│   ├── text_tasks_4400.jsonl (80% of 5,500)
-│   └── visual_tasks_440.jsonl (80% of 550)
+│   ├── text_tasks_2400_4000.jsonl (80% of 3,000-5,000)
+│   └── visual_tasks_240_400.jsonl (80% of 300-500, if available)
 ├── validation/
-│   ├── text_tasks_550.jsonl (10%)
-│   └── visual_tasks_55.jsonl (10%)
+│   ├── text_tasks_300_500.jsonl (10%)
+│   └── visual_tasks_30_50.jsonl (10%, if available)
 └── test/
-    ├── text_tasks_550.jsonl (10%)
-    └── visual_tasks_55.jsonl (10%)
+    ├── text_tasks_300_500.jsonl (10%)
+    └── visual_tasks_30_50.jsonl (10%, if available)
 ```
+
+**Lab Attribution**:
+- Maintain source_lab field for provenance tracking
+- Prepare co-author list from contributing labs
+- Generate data summary report for each collaborating lab
 
 **Success Criteria**:
 - ✅ All sessions collected
@@ -1603,31 +1635,33 @@ vision_final_config = {
 
 ---
 
-### Budget Breakdown
+### Budget Breakdown (Multi-Lab Collaboration Model)
 
 | Category | Phase 1 | Phase 2 | Phase 3 | Total |
 |----------|---------|---------|---------|-------|
-| **Compute** | $197 | $444 | $295 | **$936** |
+| **GPU Compute** | $197 | $444 | $295 | **$936** |
 | Training (EEVE) | $197 | - | - | $197 |
 | Training (EXAONE) | - | $394 | - | $394 |
-| Inference (Qwen) | - | $50 | - | $50 |
+| Inference (Qwen API) | - | $50 | - | $50 |
 | Training (Qwen2-VL) | - | - | $295 | $295 |
-| **Inference (12mo)** | - | - | - | **$2,400** |
-| RTX 3090 rental | - | - | $200/mo × 12 | $2,400 |
-| **Participant Compensation** | $600 | $36,000 | $129,000 | **$165,600** |
-| Pilot (N=20) | $600 | - | - | $600 |
-| Phase 2 (N=1,200) | - | $36,000 | - | $36,000 |
-| Phase 3 (N=4,300) | - | - | $129,000 | $129,000 |
-| **Personnel** | $15,000 | $60,000 | $75,000 | **$150,000** |
-| Research staff | $5,000 | $20,000 | $25,000 | $50,000 |
-| Technical staff | $10,000 | $40,000 | $50,000 | $100,000 |
-| **Other** | $1,000 | $3,000 | $6,000 | **$10,000** |
-| Software licenses | $200 | $500 | $500 | $1,200 |
-| IRB fees | $500 | $1,000 | $1,500 | $3,000 |
-| Conference travel | $300 | $1,500 | $4,000 | $5,800 |
-| **TOTAL** | **$16,797** | **$99,444** | **$210,295** | **$326,536** |
+| **Data Aggregation** | $500 | $2,000 | $0 | **$2,500** |
+| Pilot conversion (RA) | $500 | - | - | $500 |
+| Full dataset conversion (RA) | - | $2,000 | - | $2,000 |
+| **Personnel (Minimal)** | $1,000 | $2,000 | $1,000 | **$4,000** |
+| Part-time RA support | $1,000 | $2,000 | $1,000 | $4,000 |
+| **IRB & Admin** | $500 | $500 | $200 | **$1,200** |
+| IRB application fee | $500 | - | - | $500 |
+| IRB annual renewal | - | $500 | $200 | $700 |
+| **Optional: Inference Server** | $0 | $0 | $1,200 | **$1,200** |
+| RTX 3090 rental (if needed) | - | - | $100/mo × 12 | $1,200 |
+| **TOTAL** | **$2,197** | **$4,944** | **$2,695** | **$9,836** |
 
-**Note**: Major cost driver is participant compensation (~50% of budget)
+**Notes**:
+- **$0 participant compensation** (multi-lab data sharing with co-authorship)
+- **Minimal personnel** (existing lab staff, part-time RA only)
+- **Optional inference server** ($1,200) only if planning production deployment
+- **Core compute budget**: $936 for model training
+- **Total realistic budget**: ~$10,000 (vs $326K for new recruitment)
 
 ---
 
