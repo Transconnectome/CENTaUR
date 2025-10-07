@@ -1,0 +1,140 @@
+제공된 GitHub 리포지토리([https://github.com/marcelbinz/CENTaUR)와](https://github.com/marcelbinz/CENTaUR)와) 관련 연구를 분석했습니다. CENTaUR(Cognitive Experimental Nexus utilized as a Unified Representation)는 대규모 언어 모델(LLM)을 심리학 실험 데이터로 파인튜닝하여, 인간의 인지 과정을 예측하고 시뮬레이션하는 파운데이션 모델을 구축하는 방법론입니다.
+
+**중요 참고사항:** 제공된 링크의 저장소는 초기 버전이며, 최신 CENTaUR 연구는 Llama 3.1과 같은 최신 LLM과 효율적인 파인튜닝 기법을 사용합니다. 따라서 모델 확장 계획은 이러한 최신 접근 방식을 기반으로 수립합니다.
+
+다음은 한국형 데이터 및 발달 임상 데이터를 추가하여 CENTaUR 모델을 확장하기 위한 코드 구현 계획입니다.
+
+-----
+
+### 프로젝트 목표: Ko-CENTaUR - 한국형 발달 임상 인지 모델 개발
+
+이 프로젝트의 목표는 한국 참가자들의 연령별(발달) 및 임상 그룹별 인지 실험 데이터를 학습하여, 한국인의 인지 특성을 예측하는 파운데이션 모델을 구축하는 것입니다.
+
+### 1단계: 데이터 수집 및 표준화 (가장 핵심적인 단계)
+
+모델의 성공은 CENTaUR가 요구하는 형식에 맞는 고품질의 데이터셋 구축에 달려 있습니다.
+
+1.  **데이터 수집:**
+
+      * **대상:** 한국 아동, 청소년, 성인 및 특정 임상군(예: ADHD, ASD).
+      * **과제 유형:** 발달 및 임상적 특성을 반영하는 인지 실험 데이터 (예: 작업 기억력(N-back), 의사결정 과제, 강화학습 과제).
+      * **요구사항:** 각 시행(trial)별 자극, 참가자의 반응, 그리고 참가자가 받은 정확한 한국어 지시문이 필요합니다.
+      * **윤리:** 임상 데이터는 민감하므로 IRB 승인과 데이터 비식별화가 필수적입니다.
+
+2.  **데이터 포맷팅 (CENTaUR 시퀀스 형식):**
+
+      * 구조화된 실험 데이터를 LLM이 학습할 수 있는 순차적 텍스트 형식으로 변환합니다. 인간의 반응은 특수 토큰(예: `<< >>`)으로 구분합니다.
+
+      * **구현 (`data_pipeline.py`):** Python과 Pandas를 사용하여 원본 데이터를 표준 텍스트 형식으로 자동 변환하는 스크립트를 개발하고, HuggingFace `datasets` 형식(예: JSONL)으로 저장합니다.
+
+      * *데이터 형식 예시 (작업 기억력 과제):*
+
+        ```text
+        [과제 설명 시작] 화면에 글자가 하나씩 나타납니다. 현재 나타난 글자가 2단계 전에 나타났던 글자와 동일하면 'O' 버튼을, 다르면 'X' 버튼을 누르세요. [과제 설명 끝]
+        시행 1: 자극 'ㄱ'. 당신의 선택은: <<X>>.
+        시행 2: 자극 'ㄴ'. 당신의 선택은: <<X>>.
+        시행 3: 자극 'ㄱ'. 당신의 선택은: <<O>>.
+        ...
+        ```
+
+### 2단계: 기반 모델 선정 및 환경 구축
+
+1.  **기반 LLM 선정:**
+
+      * 한국어 이해 및 추론 능력이 뛰어난 모델을 선택합니다.
+      * *추천 옵션:* EEVE-Korean, Open-Ko-Llama3 등 한국어 특화 모델 또는 Llama 3.1과 같은 고성능 다국어 모델.
+
+2.  **개발 환경 구축:**
+
+      * **하드웨어:** 고성능 GPU (A100, H100 등) 환경이 필수적입니다.
+      * **소프트웨어 스택:** Python, PyTorch, CUDA.
+      * **라이브러리:** HuggingFace 생태계(`transformers`, `datasets`, `peft`) 및 효율적 학습을 위한 `unsloth` 라이브러리.
+
+### 3단계: 효율적 파인튜닝(PEFT) 구현
+
+대규모 모델을 효율적으로 학습하기 위해 QLoRA(Quantized LoRA)를 사용합니다. 이는 모델을 양자화하여 메모리 사용량을 줄이고, 소규모의 학습 가능한 어댑터를 추가하는 방식입니다.
+
+1.  **설정 및 준비:**
+
+      * 데이터셋을 로드하고, 선택한 모델의 토크나이저를 사용하여 텍스트를 토큰화합니다. 실험 전체 맥락을 포함할 수 있도록 최대 시퀀스 길이(`max_seq_length`)를 설정합니다.
+
+2.  **구현 예시 (효율성을 위해 `unsloth` 라이브러리 사용):**
+
+<!-- end list -->
+
+```python
+from unsloth import FastLanguageModel
+import torch
+from datasets import load_dataset
+from trl import SFTTrainer
+from transformers import TrainingArguments
+
+# 1. 모델 및 토크나이저 설정
+max_seq_length = 4096 # 데이터 길이에 따라 조정
+model_name = "yanolja/EEVE-Korean-10.8B-v1.0" # 예시 모델
+
+# 모델 로드 (4-bit 양자화 적용)
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name = model_name,
+    max_seq_length = max_seq_length,
+    load_in_4bit = True,
+)
+
+# 2. LoRA 어댑터 설정 및 적용
+model = FastLanguageModel.get_peft_model(
+    model,
+    r = 32, # LoRA Rank 설정
+    # Llama 계열 모델의 주요 레이어에 어댑터 적용
+    target_modules = ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    lora_alpha = 64,
+    lora_dropout = 0.05,
+    bias = "none",
+    use_gradient_checkpointing = True,
+)
+
+# 3. 데이터셋 로드 (JSONL 파일 예시)
+dataset = load_dataset("json", data_files="korean_psych_data.jsonl")
+
+# 4. 학습 설정 (SFTTrainer 사용)
+training_args = TrainingArguments(
+    output_dir="./Ko-CENTaUR-output",
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,
+    learning_rate=2e-5,
+    num_train_epochs=3,
+    fp16=True, # 혼합 정밀도 사용
+    logging_steps=10,
+    save_strategy="epoch",
+)
+
+trainer = SFTTrainer(
+    model = model,
+    tokenizer = tokenizer,
+    train_dataset = dataset,
+    dataset_text_field = "text", # 데이터셋의 텍스트 컬럼명
+    max_seq_length = max_seq_length,
+    args = training_args,
+)
+
+# 5. 학습 실행
+# trainer.train()
+```
+
+### 4단계: 모델 평가 및 분석
+
+학습된 Ko-CENTaUR 모델이 한국인의 발달적, 임상적 인지 특성을 잘 포착하는지 다각도로 평가합니다.
+
+1.  **정량적 평가 (`evaluate.py` 구현):**
+
+      * **Negative Log-Likelihood (NLL):** CENTaUR 연구의 핵심 지표입니다. 홀드아웃(Hold-out)된 참가자 데이터에 대해 모델이 인간의 실제 선택을 얼마나 잘 예측하는지 측정합니다 (낮을수록 우수).
+      * **예측 정확도:** 모델의 예측이 인간의 선택과 일치하는 비율을 계산합니다.
+
+2.  **일반화 능력 평가:**
+
+      * **분포 내(In-Distribution):** 학습에 사용된 실험 내에서, 학습에 포함되지 않은 참가자에 대한 예측 성능을 평가합니다.
+      * **분포 외(Out-of-Distribution, Zero-Shot):** 학습에 포함되지 않은 완전히 새로운 실험의 지시문만 제공했을 때의 수행 능력을 평가합니다.
+
+3.  **발달 및 임상 분석 (`analysis.py` 구현):**
+
+      * **발달 궤적 분석:** 모델이 연령 증가에 따른 인지 기능의 변화(예: 작업 기억력 향상, 위험 회피 성향 변화)를 시뮬레이션하는지 분석합니다.
+      * **임상적 특성 재현:** 특정 임상군(예: ADHD 그룹의 충동성)의 특징적인 행동 패턴을 모델이 재현하는지 분석합니다.

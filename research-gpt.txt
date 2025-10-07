@@ -1,0 +1,213 @@
+가능합니다. **다만 “무엇을 어떻게 포함하느냐”가 핵심**입니다. CBCL·WISC·KSADS·DSM 관련 자료는 대부분 **저작권·시험보안·데이터 사용계약(DUA/DUC)** 의 제약을 받습니다. 아래 원칙과 구현 계획을 따르면 **한국형·발달 임상 메타데이터**를 **법적·윤리적으로 안전하게** CENTaUR 파이프라인에 통합할 수 있습니다.
+
+---
+
+## 1) 결론 요약 — 무엇을 포함할 수 있고, 무엇은 안 되는가
+
+| 도구/자료                        | 포함 가능(권장 형태)                                                                  | 포함 불가(주의)                                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **CBCL (ASEBA)**             | **총점/T점수/증후군 척도(숫자)**를 *메타데이터*로 사용 (예: `cbcl_ext_t=68`)                       | **문항 텍스트·양식·채점표·규준표**의 복제/배포, 비허가 재현/파생물 공개. ASEBA는 **모든 양식·매뉴얼·소프트웨어가 저작권 보호**되며 **무단 복제 금지**를 명시합니다. ([ASEBA][1])     |
+| **WISC (Wechsler, Pearson)** | **FSIQ/지표점수(VCI/FRI/WMI/PSI)** 등 *요약 점수만* 메타데이터로 사용. 자체 규준 계산 금지.             | **문항·채점 알고리즘·규준**의 복제/재현/역공학. Pearson은 **항목·규준·채점 알고리즘 등 일체의 재생산을 금지**합니다. ([Pearson Assessments][2])                   |
+| **KSADS(-COMP)**             | **진단 결과/증상 개수/장애여부(0/1)** 등 *구조화 라벨* 사용(ABCD에서 제공되는 요약변수 포함).                 | **인터뷰 문항/프로브 텍스트** 복제·배포. (KSADS-COMP는 유료 라이선스·상업 배포 체계) ([ksadslogin.net][3])                                          |
+| **DSM**                      | **진단명/코드(가능하면 ICD-10-CM/KCD 등 공개 코드셋 병행)**를 메타데이터로 사용.                        | **DSM-5-TR 기준 텍스트·표**의 복제·재배포(APA 허가 필요). ([appi.org][4])                                                               |
+| **ABCD(대규모 코호트)**            | **NBDC Data Hub**에서 DUC 승인 후 **요약변수(예: CBCL/KSADS·인지지표) 기반 메타데이터** 사용.        | **개인수준 데이터(원자료·파생)**의 **무단 재배포**. 2025년부터 **NIMH NDA→NBDC로 이전**, DUC 조건 하 **개인수준 파생자료 공개 금지** 조항에 유의. ([ABCD Study][5]) |
+| **대안 공개측정**                  | **SDQ, PSC(PSC-17)** 등 *상대적 제약이 낮은 스크리너*를 공개 학습에 활용(단, SDQ는 비영리 한정 무료·수정 금지). | 항목 임의 수정·상업적 배포(별도 허가 필요). ([sdqinfo.org][6])                                                                           |
+
+---
+
+## 2) 전략: “과제 전사(centaur 스타일)”는 오픈 과제에, **임상 도구는 ‘메타데이터’로만**
+
+CENTaUR는 **자연어 전사 + 선택 토큰(`<< >>`)만 손실** 구조가 핵심입니다. 따라서 **CBCL/WISC/KSADS/DSM의 문항을 전사로 학습시키지 말고**, 해당 도구에서 나온 **요약 점수·진단·코호트 분류값**을 **입력 맨 앞의 메타 블록**으로만 사용합니다. 이렇게 하면
+
+1. **시험보안/저작권 위반 위험 최소화**,
+2. **발달·임상 이질성(연령/진단/증상수준)**을 모델이 “조건부 맥락”으로 활용하여 **의사결정 일반화**를 돕습니다.
+
+> ABCD는 **NBDC Data Hub**로 이전(6.0 릴리스)되어 **새 DUC 체계**를 사용합니다. **승인된 목적 내 연구 사용 + 개인수준 데이터/파생의 외부 공유 금지**를 준수해야 합니다. ([ABCD Study][5])
+
+---
+
+## 3) 구현 아키텍처(추가)
+
+```
+src/centaur_ko/
+  metadata/
+    policy.yaml                # 각 도구별 허용/금지 규칙 선언
+    encoders.py                # 메타데이터 → 텍스트 토큰/연속 임베딩
+  collators/
+    choice_masking.py          # << >> 만 labels, 메타 블록은 -100 (손실 제외)
+  datasets/
+    abcd_loader.py             # NBDC API/내부 사전다운로드에서 ABCD 요약변수 읽기
+  training/
+    adapters/
+      lora_public/             # 공개 과제(오픈 전사)만 학습한 LoRA
+      lora_private/            # DUC 제한 메타데이터 상조건 LoRA(공개 금지)
+```
+
+### 3.1 `policy.yaml` (예)
+
+```yaml
+instruments:
+  cbcl:
+    allow: ["t_scores", "syndrome_scales", "broadband_scores"]
+    deny: ["item_text", "forms", "norm_tables"]
+  wisc:
+    allow: ["fsiq", "index_scores"]
+    deny:  ["item_text", "scoring_algorithms", "norm_tables"]
+  ksads:
+    allow: ["dx_flags", "symptom_counts", "impairment_flag"]
+    deny:  ["item_text", "probe_text"]
+  dsm:
+    allow: ["dx_label", "icd10cm_code"]
+    deny:  ["criteria_text", "manual_text"]
+  abcd:
+    access: "NBDC_DUC"
+    sharing: "no_individual_level_or_derived_sharing"
+```
+
+### 3.2 메타 블록 인코딩(텍스트형; 손실 제외)
+
+```text
+[meta: age_m=126; sex=M; cbcl_int_t=69; cbcl_ext_t=58; ksads_gad=1; iq_fsiq=102; icd10cm=F90.2]
+지시문: 두 카드 중 하나를 선택하세요...
+당신은 <<왼쪽>>을 누릅니다.
+```
+
+* **collator에서 메타 블록 토큰은 labels=-100**로 마스킹(모델이 **예측**하지 않고 **조건부 맥락**으로만 사용).
+
+---
+
+## 4) ABCD(6.0) 연동 절차 (요지)
+
+1. **NBDC Data Hub 가입 및 DUC 승인** → 데이터 접근. (2025년부터 ABCD 신규/갱신 DUC는 NBDC에서 처리) ([ABCD Study][5])
+2. **ABCD 요약변수만 적재**: CBCL T점수, KSADS 진단 플래그, NIH Toolbox 인지지표 등. (**문항 텍스트는 불포함**) ([nbdc-datahub.org][7])
+3. **보안 저장소**에 원천/중간 산출 보관, **개인·파생 개별자료 외부공유 금지**(DUC 조건). ([ABCD Study][8])
+4. **학습 산출(가중치) 공개 여부 판단**: DUC/IRB 검토 + **모델 노출 리스크(문항/개인정보 회상) 프로빙 테스트** 통과 시 내부 정책에 따라 공개 또는 비공개 어댑터로 분리.
+
+---
+
+## 5) 코드 레벨 — 안전 인코딩 & 마스킹
+
+**(a) 메타 블록 생성기**
+
+```python
+# src/centaur_ko/metadata/encoders.py
+def meta_to_header(meta: dict) -> str:
+    # 숫자는 반올림/클리핑으로 과도한 정밀도 방지(규준 역추정 방지)
+    def num(x): 
+        return None if x is None else int(round(float(x)))
+    fields = [
+        f"age_m={num(meta.get('age_months'))}",
+        f"sex={meta.get('sex')}",
+        f"cbcl_int_t={num(meta.get('cbcl_int_t'))}",
+        f"cbcl_ext_t={num(meta.get('cbcl_ext_t'))}",
+        f"ksads_gad={int(meta.get('ksads_gad',0))}",
+        f"iq_fsiq={num(meta.get('wisc_fsiq'))}",
+        f"icd10cm={meta.get('icd10cm')}",
+    ]
+    return "[meta: " + "; ".join([f for f in fields if f is not None]) + "]\n"
+```
+
+**(b) 메타/전사 결합 & 라벨 마스킹**
+
+* `choice_masking.py`에서 `<< >>` 사이 토큰만 `labels` 활성화(나머지 -100).
+* 메타 블록 및 지시문·화면 묘사 등 **비선택 토큰 전체 -100** → **선택 행동만 학습**(CENTaUR 설계와 합치).
+
+---
+
+## 6) 공개/비공개 이중 어댑터 전략
+
+* **Public LoRA**: 오픈 과제 전사(예: 밴딧·Stroop·N‑back) **+ SDQ/PSC 기반 코호트 메타**(허용 범위 확인)로 학습 → **공개 가능**. ([eif.org.uk][9])
+* **Private LoRA**: **ABCD의 CBCL/KSADS 메타**(DUC)와 **내부 WISC 점수** 등으로 **기관 내부 전용** 미세조정(가중치 공개 금지).
+* 런타임에 `Public ⊕ Private` 합성 사용(기관 내 서비스), 외부에는 **Public만 배포**.
+
+---
+
+## 7) 데이터 거버넌스 & 법적 포인트(핵심 근거)
+
+* **CBCL/ASEBA**: 양식·매뉴얼 등 **모든 자료 저작권 보호**, **무단 복제 금지**. 별도 **재현/스코어링 라이선스** 제도 존재. → **문항·규준 불가**, **점수(숫자)만 메타로**. ([ASEBA][1])
+* **WISC/Pearson**: **항목·규준·채점 알고리즘 재생산 금지**를 약관에 명시(시험보안). **규준 자체를 코드/데이터에 포함 금지**. → **FSIQ/지표 점수만 사용**. ([Pearson Assessments][2])
+* **KSADS(-COMP)**: 상용 웹 기반 도구, 라이선스/가격 체계 존재. → **진단 라벨·증상 개수 등 파생지표**만 사용. ([ksadslogin.net][10])
+* **DSM**: **교재/기준 텍스트는 APA 저작권** → 텍스트/표 인용·복제 시 **허가 필요**. **진단명 자체는 사실 정보**, 코드 표기는 **ICD-10-CM** 병행 권장. ([appi.org][4])
+* **ABCD**: 2025년 **NBDC Data Hub**로 이전, **새 DUC 필수**. **개인수준 파생자료 외부 공유 금지**, 연구목적 사용·보안·삭제 등 의무. ([ABCD Study][5])
+
+---
+
+## 8) 평가/위험 완화
+
+1. **누출(Leakage) 테스트**: 학습 후 “CBCL/KSADS 문항을 나열하라” 류 프롬프트로 **무응답/거부**를 유도(거부문구 규칙 추가).
+2. **미분기밀(DP) 옵션**: Private LoRA 학습에 **클리핑+가우시안 노이즈**로 **문항·개인 회상 확률을 하향**.
+3. **재현 가능성 vs 보안**: ABCD 기반 실험 스크립트는 공개하되, **데이터 접근은 NBDC에서**(가짜/더미로 테스트). ([nbdc-datahub.org][11])
+
+---
+
+## 9) 연구·배포 의사결정 트리
+
+* **ABCD·KSADS/CBCL 메타 사용** → **내부 성능 향상** 목적 OK (DUC/IRB 하).
+* **모델 공개?**
+
+  * DUC/기관정책이 **모델 가중치 공개**를 **명시 허용**하지 않으면 **비공개** 유지.
+  * 공개 시에도 **문항 회상 테스트 통과 + 라이선스 검토 기록**을 모델 카드에 첨부. ([ABCD Study][8])
+
+---
+
+## 10) 마일스톤(실행 가능한 체크리스트)
+
+* [ ] **NBDC DUC 승인** (ABCD 6.0 접근; 기존 NDA 사용자도 **재승인 필요**) ([ABCD Study][5])
+* [ ] **policy.yaml** 수립(도구별 허용/금지) + 파이프라인 강제 검사기(deny 필드 탐지 시 hard-fail)
+* [ ] **메타 인코더**/마스킹 collator 적용(메타·지시문 -100, `<< >>`만 라벨)
+* [ ] **Public vs Private LoRA** 분리 학습(공개/비공개 아티팩트 분리)
+* [ ] **누출/저작권 회피 테스트** + **모델 카드**(법적 고지 포함)
+* [ ] **발달/임상 공정성 리포트**(연령·성별·진단군별 NLL/ACC/ECE)
+
+---
+
+## 11) 자주 받는 질문(지욱 교수님 상황에 맞춰)
+
+**Q1. ABCD의 KSADS/CBCL을 써서 학습하면 공개 배포 가능한가?**
+A. **케이스 바이 케이스**입니다. **NBDC DUC**는 개인수준 **파생자료 외부 공유 금지**를 포함합니다. **가중치가 ‘데이터의 파생물’로 간주될 소지**가 있으므로, **가중치 공개 전** NBDC/기관 법무·IRB와 **사전 협의**를 권합니다(대안: 내부 전용 Private LoRA). ([ABCD Study][8])
+
+**Q2. WISC 점수는 써도 되나?**
+A. **점수(숫자)**는 메타데이터로 사용 가능하나, **규준표/채점 알고리즘/문항**을 코드·데이터에 포함하면 안 됩니다(심지어 규준 “복제”는 **컴퓨터 메모리에 입력**하는 것만으로도 문제 소지). **공식 소프트웨어로 산출된 점수만** 저장/사용하세요. ([pearsonclinical.com.au][12])
+
+**Q3. DSM 기준 텍스트를 프롬프트에 넣어 학습해도 되나?**
+A. **비권장/허가 필요**. 대신 **ICD-10-CM 코드 + 진단 라벨** 같은 **사실적 메타데이터**만 사용하세요. ([appi.org][4])
+
+**Q4. 공개용 데이터로는 무엇이 좋은가?**
+A. **SDQ**(비영리 무료, 수정 금지), **PSC/PSC-17**(활용 사례 많음)을 추천합니다. 공개 모델 학습에 활용하고, **CBCL/KSADS/WISC는 내부 메타**로만 쓰는 **이중 트랙**이 안전합니다. ([eif.org.uk][9])
+
+---
+
+## 12) 다음 단계(바로 착수 가능한 일)
+
+1. **instrument policy**와 **메타 인코더**를 리포에 추가(위 코드 스니펫 기반).
+2. **ABCD 6.0** 접근 신청(NBDC), 변수사전에서 **CBCL/KSADS·인지 요약 변수**만 골라 **메타셋** 구성. ([nbdc-datahub.org][7])
+3. **Public LoRA**(오픈 과제 전사 + SDQ/PSC 메타) 베이스라인 학습 → 재현 리포트.
+4. **Private LoRA**(ABCD 메타 + 기관 보유 WISC/임상 메타)로 추가 미세조정 → **내부 배포**.
+5. **모델 카드**에 데이터 출처·제약·허용범위·프로빙 결과 명시.
+
+---
+
+### 창의적 설계 질문(Forward-looking)
+
+* **조건부 어댑터**: 메타데이터(연령/진단/T점수)에 따라 LoRA 게이트를 다르게 여는 **conditional-LoRA**를 적용하면, 임상군별 편향을 줄일 수 있을까요?
+* **비식별 수치 처리**: T점수를 **구간화(예: 임상범위≥70, 경계 65–69)** 하면 규준 역추정 위험을 더 낮추면서도 예측력 손실은 얼마나 될까요?
+* **DP-미세조정**: Private LoRA에 **(C, σ) DP-Adam**을 적용했을 때, 행동 예측 성능과 누출 리스크의 균형점은?
+
+---
+
+필요하시면 **policy 파일·메타 인코더·collator 반영 커밋 템플릿**까지 만들어 드리겠습니다.
+(참고 근거: **ABCD→NBDC 전환/DUC** 공지, **CBCL/ASEBA·WISC/Pearson** 저작권·시험보안 정책, **DSM 사용 허가**, **SDQ/PSC 활용 조건** 등.) ([ABCD Study][5])
+
+[1]: https://aseba.org/wp-content/uploads/Application-for-license-to-reproduce-ASEBA-forms.pdf?utm_source=chatgpt.com "Application for license to reproduce ASEBA® forms"
+[2]: https://www.pearsonassessments.com/footer/terms-of-sale---use.html?srsltid=AfmBOoobisVKQdPTyofNIXvYzyX2U1GMktJhEgXsgwwtkYNLN3I7EdOj&utm_source=chatgpt.com "Terms and conditions of sale and use of Pearson products"
+[3]: https://www.ksadslogin.net/ksads-comp/aboutKC.aspx?utm_source=chatgpt.com "About KSADS-COMP tool and features"
+[4]: https://www.appi.org/Support/Customer-Information/Permissions?utm_source=chatgpt.com "APA - Permissions, Licensing, and Reprints"
+[5]: https://abcdstudy.org/scientists/data-sharing/?utm_source=chatgpt.com "Data Sharing"
+[6]: https://www.sdqinfo.org/?utm_source=chatgpt.com "(www.SDQinfo.org)."
+[7]: https://www.nbdc-datahub.org/abcd-release-6-0?utm_source=chatgpt.com "ABCD - Release 6.0"
+[8]: https://abcdstudy.org/wp-content/uploads/2020/08/ABCD-data-use-deck.pdf?utm_source=chatgpt.com "[PDF] the NIMH Data Archive - ABCD Study"
+[9]: https://www.eif.org.uk/files/resources/measure-report-child-sdq.pdf?utm_source=chatgpt.com "Strengths and Difficulties Questionnaire (SDQ)"
+[10]: https://www.ksadslogin.net/ksads-comp/?utm_source=chatgpt.com "KSADS-COMP | The gold standard in child and adolescent ..."
+[11]: https://www.nbdc-datahub.org/?utm_source=chatgpt.com "NBDC Data Hub"
+[12]: https://www.pearsonclinical.com.au/legal/permissions-licencing.html?utm_source=chatgpt.com "Permissions licencing | Pearson Clinical Assessment AU&NZ"
+
