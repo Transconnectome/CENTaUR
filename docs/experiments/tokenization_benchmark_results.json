@@ -1,0 +1,99 @@
+[
+  {
+    "model": "LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct",
+    "vocab_size": 102400,
+    "tasks": {
+      "k_mmse": {
+        "characters": 215,
+        "tokens": 111,
+        "tokens_per_char": 0.5163
+      },
+      "phq9": {
+        "characters": 193,
+        "tokens": 101,
+        "tokens_per_char": 0.5233
+      },
+      "sdq": {
+        "characters": 187,
+        "tokens": 98,
+        "tokens_per_char": 0.5241
+      },
+      "experiment_instructions": {
+        "characters": 194,
+        "tokens": 92,
+        "tokens_per_char": 0.4742
+      }
+    },
+    "overall": {
+      "total_characters": 789,
+      "total_tokens": 402,
+      "tokens_per_char": 0.5095
+    }
+  },
+  {
+    "model": "yanolja/EEVE-Korean-10.8B-v1.0",
+    "vocab_size": 40960,
+    "tasks": {
+      "k_mmse": {
+        "characters": 215,
+        "tokens": 119,
+        "tokens_per_char": 0.5535
+      },
+      "phq9": {
+        "characters": 193,
+        "tokens": 103,
+        "tokens_per_char": 0.5337
+      },
+      "sdq": {
+        "characters": 187,
+        "tokens": 93,
+        "tokens_per_char": 0.4973
+      },
+      "experiment_instructions": {
+        "characters": 194,
+        "tokens": 90,
+        "tokens_per_char": 0.4639
+      }
+    },
+    "overall": {
+      "total_characters": 789,
+      "total_tokens": 405,
+      "tokens_per_char": 0.5133
+    }
+  },
+  {
+    "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    "error": "You are trying to access a gated repo.\nMake sure to have access to it at https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct.\n403 Client Error. (Request ID: Root=1-68e5296b-35a7b846487b61fa2bb90a90;bc9fac45-15d6-4b6a-88f0-c68dbc39069f)\n\nCannot access gated repo for url https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct/resolve/main/config.json.\nAccess to model meta-llama/Llama-3.1-8B-Instruct is restricted and you are not in the authorized list. Visit https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to ask for access."
+  },
+  {
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "vocab_size": 151665,
+    "tasks": {
+      "k_mmse": {
+        "characters": 215,
+        "tokens": 141,
+        "tokens_per_char": 0.6558
+      },
+      "phq9": {
+        "characters": 193,
+        "tokens": 138,
+        "tokens_per_char": 0.715
+      },
+      "sdq": {
+        "characters": 187,
+        "tokens": 121,
+        "tokens_per_char": 0.6471
+      },
+      "experiment_instructions": {
+        "characters": 194,
+        "tokens": 123,
+        "tokens_per_char": 0.634
+      }
+    },
+    "overall": {
+      "total_characters": 789,
+      "total_tokens": 523,
+      "tokens_per_char": 0.6629
+    }
+  }
+]
